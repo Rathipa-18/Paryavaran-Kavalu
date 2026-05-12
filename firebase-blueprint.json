@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App user profile including role and Eco-Karma",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "ecoKarma": { "type": "integer" },
+        "role": { "type": "string", "enum": ["volunteer", "authority"] }
+      },
+      "required": ["uid", "displayName", "ecoKarma", "role"]
+    },
+    "Report": {
+      "title": "Waste Report",
+      "description": "Geo-tagged waste blackspot report",
+      "type": "object",
+      "properties": {
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "wasteType": { "type": "string", "enum": ["Plastic", "Organic", "Electronic", "Metal", "Other"] },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Cleaned"] },
+        "reportedBy": { "type": "string" },
+        "reportedByName": { "type": "string" },
+        "reportedAt": { "type": "string", "format": "date-time" },
+        "cleanedBy": { "type": "string" },
+        "cleanedAt": { "type": "string", "format": "date-time" },
+        "cleanedLat": { "type": "number" },
+        "cleanedLng": { "type": "number" }
+      },
+      "required": ["lat", "lng", "wasteType", "status", "reportedBy", "reportedAt"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    },
+    "reports": {
+      "schema": "Report",
+      "description": "Collection of waste reports"
+    }
+  }
+}

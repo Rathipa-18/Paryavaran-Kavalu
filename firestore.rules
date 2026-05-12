@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // GLOBALS & HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    // -------------------------------------------------------------------------
+    // ENTITY VALIDATIONS
+    // -------------------------------------------------------------------------
+    
+    function isValidReport(data) {
+      let requiredFields = ['lat', 'lng', 'wasteType', 'status', 'reportedBy', 'reportedAt', 'reportedByName', 'description', 'imageUrl'];
+      return data.keys().hasAll(requiredFields)
+        && data.keys().size() <= 13 
+        && data.lat is number
+        && data.lng is number
+        && data.wasteType in ['Plastic', 'Organic', 'Electronic', 'Metal', 'Other']
+        && data.status in ['Pending', 'Cleaned']
+        && data.reportedBy is string
+        && data.reportedByName is string
+        && data.reportedByName.size() <= 100
+        && (data.description is string && data.description.size() <= 5000)
+        && (data.imageUrl is string && data.imageUrl.size() <= 10000000)
+        && (data.get('cleanedBy', null) == null || data.get('cleanedBy', null) is string)
+        && (data.get('cleanedAt', null) == null || data.get('cleanedAt', null) is timestamp)
+        && (data.get('reportedAt', null) is timestamp)
+        && (data.get('cleanedLat', null) == null || data.get('cleanedLat', null) is number)
+        && (data.get('cleanedLng', null) == null || data.get('cleanedLng', null) is number);
+    }
+    
+    function isValidUser(data) {
+      let requiredFields = ['uid', 'displayName', 'photoURL', 'ecoKarma', 'role'];
+      return data.keys().hasAll(requiredFields)
+        && data.keys().size() == requiredFields.size()
+        && data.uid == request.auth.uid
+        && data.displayName is string
+        && data.displayName.size() <= 100
+        && data.ecoKarma is int
+        && data.role in ['volunteer', 'authority'];
+    }
+
+    function isAuthority() {
+      return isSignedIn() && 
+             request.auth.token.email_verified == true &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'authority';
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // -------------------------------------------------------------------------
+    // DEFAULT DENY
+    // -------------------------------------------------------------------------
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // COLLECTIONS
+    // -------------------------------------------------------------------------
+    
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId) && isVerifiedUser() && isValidUser(incoming()) && incoming().ecoKarma == 0;
+      allow update: if isOwner(userId) && isVerifiedUser() && isValidUser(incoming()) && (
+        (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'role'])) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['ecoKarma']) && incoming().ecoKarma > existing().ecoKarma)
+      );
+    }
+    
+    match /reports/{reportId} {
+      allow read: if true;
+      allow create: if isVerifiedUser() 
+        && isValidId(reportId)
+        && isValidReport(incoming())
+        && incoming().reportedBy == request.auth.uid
+        && incoming().status == 'Pending'
+        && incoming().reportedAt == request.time;
+        
+      allow update: if isVerifiedUser() && isValidReport(incoming()) && incoming().reportedBy == existing().reportedBy && (
+        // Action: Mark as Cleaned (Authority only)
+        (
+          isAuthority() && 
+          existing().status == 'Pending' &&
+          incoming().status == 'Cleaned' &&
+          incoming().cleanedBy == request.auth.uid &&
+          incoming().cleanedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'cleanedBy', 'cleanedAt', 'cleanedLat', 'cleanedLng'])
+        ) ||
+        // Action: Edit Pending
+        (
+          isOwner(existing().reportedBy) &&
+          existing().status == 'Pending' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['wasteType', 'description', 'imageUrl', 'lat', 'lng'])
+        ) ||
+        // Action: Update Cleaned Notes (Authority only)
+        (
+          isAuthority() &&
+          existing().status == 'Cleaned' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['description'])
+        )
+      );
+      
+      allow delete: if isVerifiedUser() && isOwner(existing().reportedBy) && existing().status == 'Pending';
+    }
+    
+    // For test connection
+    match /test/connection {
+      allow get: if true;
+    }
+  }
+}
