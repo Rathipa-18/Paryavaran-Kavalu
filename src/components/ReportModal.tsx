@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Camera, MapPin, Loader2, Check, Wand2 } from 'lucide-react';
+import { X, Camera, MapPin, Loader2, Check, Wand2, AlertCircle } from 'lucide-react';
 import { WasteType } from '../types';
 import { cn } from '../lib/utils';
 import { GoogleGenAI } from '@google/genai';
@@ -22,6 +22,13 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleClose = () => {
+    setWasteType('Plastic');
+    setDescription('');
+    setImagePreview(null);
+    onClose();
+  };
+
   const analyzeImage = async () => {
     if (!imagePreview) return;
     setIsAnalyzing(true);
@@ -29,23 +36,25 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
       const base64Data = imagePreview.split(',')[1];
       
+      // Requesting more detailed analysis and structured output
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: {
           parts: [
-            { text: "Identify the type of waste in this image. Choose ONLY one from this list: Plastic, Organic, Electronic, Metal, Other. Return ONLY the category name. Also provide a brief 1-sentence description of the hazard." },
+            { text: "Analyze this image for environmental waste. Identify the dominant waste type from: Plastic, Organic, Electronic, Metal, Other. Then describe the situation in one concise sentence. Format: CATEGORY\nDESCRIPTION" },
             { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
           ]
         }
       });
 
       const text = response.text || "";
-      const lines = text.split('\n');
-      const category = lines[0].trim();
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      const categoryCandidate = lines[0]?.trim();
       const desc = lines.slice(1).join(' ').trim() || text;
 
-      if (WASTE_TYPES.includes(category as WasteType)) {
-        setWasteType(category as WasteType);
+      if (WASTE_TYPES.some(t => categoryCandidate?.includes(t))) {
+        const matched = WASTE_TYPES.find(t => categoryCandidate?.includes(t));
+        if (matched) setWasteType(matched);
       }
       if (desc) setDescription(desc);
     } catch (error) {
@@ -100,7 +109,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       <motion.div
@@ -111,7 +120,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
       >
         <div className="p-6 border-b border-stone-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <h2 className="text-2xl font-serif font-bold text-stone-900">New Spot Report</h2>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
+          <button onClick={handleClose} className="p-2 hover:bg-stone-100 rounded-full transition-colors">
             <X className="w-6 h-6 text-stone-500" />
           </button>
         </div>

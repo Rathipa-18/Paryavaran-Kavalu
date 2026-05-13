@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, useMap, useMapsLibrary } from '@vis.gl/react-google-maps';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap, Circle } from '@vis.gl/react-google-maps';
 import { WasteReport, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { MapPin, Info, CheckCircle2, Search, Filter, X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 const API_KEY = 
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||
   (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
+  (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ||
   '';
 
 const hasValidKey = Boolean(API_KEY) && API_KEY !== 'YOUR_API_KEY';
@@ -18,7 +19,7 @@ interface MapViewProps {
   selectedReport: WasteReport | null;
   onReportClick: (report: WasteReport | null) => void;
   onMarkAsCleaned: (report: WasteReport, coords?: { lat: number; lng: number }) => void;
-  userCoords: { lat: number; lng: number } | null;
+  userCoords: { lat: number; lng: number; accuracy?: number | null } | null;
 }
 
 interface MapInnerProps extends MapViewProps {}
@@ -77,27 +78,28 @@ function MapInner({ userProfile, reports, selectedReport, onReportClick, onMarkA
         ))}
 
         {userCoords && (
-          <>
-            {/* Accuracy Circle */}
-            <AdvancedMarker position={userCoords} zIndex={1}>
-               <div 
-                 style={{
-                   width: '100px',
-                   height: '100px',
-                   marginLeft: '-50px',
-                   marginTop: '-50px'
-                 }}
-                 className="bg-blue-500/10 border-2 border-blue-500/30 rounded-full flex items-center justify-center"
-               />
-            </AdvancedMarker>
+          <Circle
+            center={userCoords}
+            radius={userCoords.accuracy || 50}
+            options={{
+              fillColor: '#3b82f6',
+              fillOpacity: 0.1,
+              strokeColor: '#3b82f6',
+              strokeOpacity: 0.3,
+              strokeWeight: 1,
+              clickable: false,
+              editable: false,
+            }}
+          />
+        )}
 
-            <AdvancedMarker position={userCoords} zIndex={2}>
-              <div className="relative">
-                <div className="absolute -inset-2 bg-blue-500/20 rounded-full animate-ping" />
-                <div className="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg relative z-10" />
-              </div>
-            </AdvancedMarker>
-          </>
+        {userCoords && (
+          <AdvancedMarker position={userCoords} zIndex={2}>
+            <div className="relative">
+              <div className="absolute -inset-2 bg-blue-500/20 rounded-full animate-ping" />
+              <div className="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg relative z-10" />
+            </div>
+          </AdvancedMarker>
         )}
       </Map>
 

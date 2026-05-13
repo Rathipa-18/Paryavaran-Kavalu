@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { auth, db, signInWithGoogle } from './firebase';
+import { auth, db, signInWithGoogle, testConnection, onConnectionChange } from './firebase';
 import { 
   collection, 
   query, 
@@ -24,7 +24,7 @@ import ReportModal from './components/ReportModal';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import RestorationTasks from './components/RestorationTasks';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, AlertCircle, Plus, MapPin, X } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, MapPin, X, CheckCircle } from 'lucide-react';
 
 export default function App() {
   const [user, loading] = useAuthState(auth);
@@ -38,9 +38,30 @@ export default function App() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number; accuracy?: number | null } | null>(null);
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<boolean>(true);
+  const [pendingReportData, setPendingReportData] = useState<any | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   // useFusedLocation provides GPS coordinates with high accuracy mirroring Android's location client
   const { location, error: locationError } = useFusedLocation();
+
+  useEffect(() => {
+    return onConnectionChange((connected) => {
+      setDbStatus(connected);
+      if (!connected) {
+        // Attempt immediate retry
+        testConnection();
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    // If we have pending report data and user just signed in
+    if (user && pendingReportData) {
+      handleNewReport(pendingReportData);
+      setPendingReportData(null);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (location) {
@@ -62,7 +83,7 @@ export default function App() {
         const reportsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as WasteReport[];
         setReports(reportsData);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'reports')
+      (err) => setError(handleFirestoreError(err, OperationType.LIST, 'reports').message)
     );
     return () => unsubscribe();
   }, []);
@@ -75,7 +96,7 @@ export default function App() {
         const users = snapshot.docs.map(d => d.data() as UserProfile);
         setLeaderboard(users);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'users')
+      (err) => setError(handleFirestoreError(err, OperationType.LIST, 'users').message)
     );
     return () => unsubscribe();
   }, []);
@@ -98,7 +119,7 @@ export default function App() {
           setShowOnboarding(true);
         }
       },
-      (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`)
+      (err) => setError(handleFirestoreError(err, OperationType.GET, `users/${user.uid}`).message)
     );
     return () => unsubscribe();
   }, [user]);
@@ -117,12 +138,13 @@ export default function App() {
       await setDoc(userRef, initialProfile);
       setShowOnboarding(false);
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+      setError(handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`).message);
     }
   };
 
   const handleNewReport = async (data: { wasteType: WasteType; description: string; imageUrl: string; lat: number; lng: number }) => {
     if (!user) {
+      setPendingReportData(data);
       signInWithGoogle();
       return;
     }
@@ -143,8 +165,11 @@ export default function App() {
       await updateDoc(userRef, {
         ecoKarma: increment(50)
       });
+      setIsReportModalOpen(false);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'reports');
+      setError(handleFirestoreError(err, OperationType.CREATE, 'reports').message);
     }
   };
 
@@ -177,7 +202,7 @@ export default function App() {
       
       setSelectedReport({ ...report, status: 'Cleaned', ...updateData });
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `reports/${report.id}`);
+      setError(handleFirestoreError(err, OperationType.UPDATE, `reports/${report.id}`).message);
     }
   };
 
@@ -186,7 +211,7 @@ export default function App() {
       const reportRef = doc(db, 'reports', reportId);
       await updateDoc(reportRef, data);
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `reports/${reportId}`);
+      setError(handleFirestoreError(err, OperationType.UPDATE, `reports/${reportId}`).message);
     }
   };
 
@@ -292,6 +317,22 @@ export default function App() {
             />
           )}
 
+          {/* Database Offline Warning */}
+          <AnimatePresence>
+            {!dbStatus && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="absolute top-20 left-1/2 -translate-x-1/2 bg-orange-100 border border-orange-200 text-orange-800 px-4 py-2 rounded-xl shadow-lg flex items-center gap-3 z-40"
+              >
+                <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-xs font-bold uppercase tracking-wider">Working Offline</span>
+                <span className="text-[10px] opacity-70">Backend unreachable. Data may be delayed.</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Error Banner */}
           <AnimatePresence>
             {error && (
@@ -306,6 +347,26 @@ export default function App() {
                 <button onClick={() => setError(null)} className="p-1 hover:bg-white/20 rounded-full">
                   <X className="w-4 h-4" />
                 </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Success Toast */}
+          <AnimatePresence>
+            {showSuccessToast && (
+              <motion.div 
+                initial={{ opacity: 0, y: 40, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="absolute bottom-10 left-12 right-12 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 bg-green-600 text-white px-8 py-4 rounded-[2rem] shadow-2xl flex items-center gap-4 z-50"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-serif font-black text-lg leading-tight">Report Submitted</h4>
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">+50 Eco-Karma Earned</p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
