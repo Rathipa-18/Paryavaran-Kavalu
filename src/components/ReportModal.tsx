@@ -33,10 +33,17 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
     if (!imagePreview) return;
     setIsAnalyzing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+      const apiKey = process.env.GEMINI_API_KEY || 
+                    (import.meta as any).env?.VITE_GEMINI_API_KEY || 
+                    '';
+      
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing. Please add it to your environment variables.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       const base64Data = imagePreview.split(',')[1];
       
-      // Requesting more detailed analysis and structured output
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: {
@@ -62,6 +69,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
       if (desc) setDescription(desc);
     } catch (error) {
       console.error("AI Analysis failed:", error);
+      alert(error instanceof Error ? error.message : "AI Analysis failed. Please categorization manually.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -258,6 +266,11 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
               <>
                 <Loader2 className="w-6 h-6 animate-spin" />
                 Sending Report...
+              </>
+            ) : !currentCoords ? (
+              <>
+                <MapPin className="w-5 h-5 animate-pulse" />
+                Waiting for Location...
               </>
             ) : (
               'Submit Report'

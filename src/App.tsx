@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { auth, db, signInWithGoogle, testConnection, onConnectionChange } from './firebase';
 import { 
   collection, 
@@ -37,7 +37,7 @@ export default function App() {
   const [selectedReport, setSelectedReport] = useState<WasteReport | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number; accuracy?: number | null } | null>(null);
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
-  const [error, setError] = useState<React.ReactNode | null>(null);
+  const [error, setError] = useState<ReactNode | null>(null);
   const [dbStatus, setDbStatus] = useState<boolean>(true);
   const [pendingReportData, setPendingReportData] = useState<any | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
