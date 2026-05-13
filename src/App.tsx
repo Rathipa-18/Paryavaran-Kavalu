@@ -37,13 +37,13 @@ export default function App() {
   const [selectedReport, setSelectedReport] = useState<WasteReport | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number; accuracy?: number | null } | null>(null);
   const [leaderboard, setLeaderboard] = useState<UserProfile[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
   const [dbStatus, setDbStatus] = useState<boolean>(true);
   const [pendingReportData, setPendingReportData] = useState<any | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   // useFusedLocation provides GPS coordinates with high accuracy mirroring Android's location client
-  const { location, error: locationError } = useFusedLocation();
+  const { location, error: locationError, retry: retryLocation } = useFusedLocation();
 
   useEffect(() => {
     return onConnectionChange((connected) => {
@@ -71,9 +71,26 @@ export default function App() {
 
   useEffect(() => {
     if (locationError) {
-      setError(locationError);
+      if (locationError.includes('denied')) {
+        setError(
+          <div className="flex flex-col items-center gap-2">
+            <span>{locationError} Geolocation requires a **secure connection (HTTPS)** or **'localhost'**.</span>
+            <button 
+              onClick={() => {
+                setError(null);
+                retryLocation();
+              }}
+              className="px-4 py-1 bg-white/20 hover:bg-white/30 rounded-full text-xs font-bold transition-colors"
+            >
+              Try Again
+            </button>
+          </div> as any
+        );
+      } else {
+        setError(locationError);
+      }
     }
-  }, [locationError]);
+  }, [locationError, retryLocation]);
 
   // Listen to reports
   useEffect(() => {

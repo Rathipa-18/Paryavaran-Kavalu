@@ -61,7 +61,7 @@ export function useFusedLocation() {
     setState(prev => ({ ...prev, error: errorMessage, isLoading: false }));
   }, []);
 
-  useEffect(() => {
+  const startWatching = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setState({
         location: null,
@@ -71,23 +71,28 @@ export function useFusedLocation() {
       return;
     }
 
-    // High accuracy options mimicking "PRIORITY_HIGH_ACCURACY" in FusedLocationProvider
     const options: PositionOptions = {
       enableHighAccuracy: true,
-      timeout: 30000, // Increased to 30s to allow GPS lock
+      timeout: 30000,
       maximumAge: 0,
     };
 
-    // Get last known location immediately
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    
     navigator.geolocation.getCurrentPosition(updateLocation, handleError, options);
-
-    // Start watching for location updates
     const watchId = navigator.geolocation.watchPosition(updateLocation, handleError, options);
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
+    
+    return watchId;
   }, [updateLocation, handleError]);
 
-  return state;
+  useEffect(() => {
+    const watchId = startWatching();
+    return () => {
+      if (typeof watchId === 'number') {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [startWatching]);
+
+  return { ...state, retry: startWatching };
 }

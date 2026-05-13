@@ -1,9 +1,47 @@
-import { useEffect, useState, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker, Pin, useMap, Circle } from '@vis.gl/react-google-maps';
+import { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import { APIProvider, Map, AdvancedMarker, Pin, useMap } from '@vis.gl/react-google-maps';
 import { WasteReport, UserProfile } from '../types';
 import { cn } from '../lib/utils';
 import { MapPin, Info, CheckCircle2, Search, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+
+// Custom Circle component for @vis.gl/react-google-maps
+type CircleProps = google.maps.CircleOptions & {
+  center: google.maps.LatLngLiteral;
+  radius: number;
+};
+
+const Circle = forwardRef((props: CircleProps, ref) => {
+  const map = useMap();
+  const circleRef = useRef<google.maps.Circle | null>(null);
+
+  useEffect(() => {
+    if (!map) return;
+    circleRef.current = new google.maps.Circle({
+      ...props,
+      map
+    });
+
+    return () => {
+      if (circleRef.current) {
+        circleRef.current.setMap(null);
+      }
+    };
+  }, [map]);
+
+  useEffect(() => {
+    if (circleRef.current) {
+      const { center, radius, ...options } = props;
+      circleRef.current.setCenter(center);
+      circleRef.current.setRadius(radius);
+      circleRef.current.setOptions(options);
+    }
+  }, [props.center, props.radius]);
+
+  useImperativeHandle(ref, () => circleRef.current);
+
+  return null;
+});
 
 const API_KEY = 
   process.env.GOOGLE_MAPS_PLATFORM_KEY ||

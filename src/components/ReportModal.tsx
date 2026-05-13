@@ -52,8 +52,11 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
       const categoryCandidate = lines[0]?.trim();
       const desc = lines.slice(1).join(' ').trim() || text;
 
-      if (WASTE_TYPES.some(t => categoryCandidate?.includes(t))) {
-        const matched = WASTE_TYPES.find(t => categoryCandidate?.includes(t));
+      if (categoryCandidate) {
+        const matched = WASTE_TYPES.find(t => 
+          categoryCandidate.toLowerCase().includes(t.toLowerCase()) ||
+          t.toLowerCase().includes(categoryCandidate.toLowerCase())
+        );
         if (matched) setWasteType(matched);
       }
       if (desc) setDescription(desc);
