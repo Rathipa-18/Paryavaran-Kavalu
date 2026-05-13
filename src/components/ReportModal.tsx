@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Camera, MapPin, Loader2, Check, Wand2, AlertCircle } from 'lucide-react';
 import { WasteType } from '../types';
 import { cn } from '../lib/utils';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -41,20 +41,18 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
         throw new Error("Gemini API Key is missing. Please add it to your environment variables.");
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const genAI = new GoogleGenerativeAI(apiKey);
       const base64Data = imagePreview.split(',')[1];
       
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            { text: "Analyze this image for environmental waste. Identify the dominant waste type from: Plastic, Organic, Electronic, Metal, Other. Then describe the situation in one concise sentence. Format: CATEGORY\nDESCRIPTION" },
-            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-          ]
-        }
-      });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const result = await model.generateContent([
+        "Analyze this image for environmental waste. Identify the dominant waste type from: Plastic, Organic, Electronic, Metal, Other. Then describe the situation in one concise sentence. Format: CATEGORY\nDESCRIPTION",
+        { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+      ]);
 
-      const text = response.text || "";
+      const response = await result.response;
+      const text = response.text();
       const lines = text.split('\n').filter(l => l.trim().length > 0);
       const categoryCandidate = lines[0]?.trim();
       const desc = lines.slice(1).join(' ').trim() || text;

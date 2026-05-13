@@ -17,6 +17,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { WasteReport, UserProfile, WasteType } from './types';
 import { handleFirestoreError, OperationType } from './lib/firestoreUtils';
 import { useFusedLocation } from './hooks/useFusedLocation';
+import { MapPin } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
@@ -73,18 +74,32 @@ export default function App() {
     if (locationError) {
       if (locationError.includes('denied')) {
         setError(
-          <div className="flex flex-col items-center gap-2">
-            <span>{locationError} Geolocation requires a **secure connection (HTTPS)** or **'localhost'**.</span>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="p-3 bg-white/10 rounded-full">
+              <MapPin className="w-8 h-8 text-white animate-bounce" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-bold text-lg">Location Access Required</p>
+              <p className="text-sm opacity-90">To report blackspots, we need your precise GPS coordinates.</p>
+            </div>
+            <div className="bg-black/20 p-4 rounded-xl text-left text-xs space-y-2 max-w-xs">
+              <p className="font-semibold uppercase tracking-wider opacity-70">How to Fix:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Click the <span className="font-bold">Lock/Settings icon</span> in your URL bar.</li>
+                <li>Ensure <span className="font-bold">Location</span> is set to "Allow".</li>
+                <li>Refresh the page.</li>
+              </ol>
+            </div>
             <button 
               onClick={() => {
                 setError(null);
                 retryLocation();
               }}
-              className="px-4 py-1 bg-white/20 hover:bg-white/30 rounded-full text-xs font-bold transition-colors"
+              className="mt-2 px-8 py-2 bg-white text-orange-600 rounded-full font-bold shadow-lg hover:scale-105 transition-transform"
             >
               Try Again
             </button>
-          </div> as any
+          </div>
         );
       } else {
         setError(locationError);
