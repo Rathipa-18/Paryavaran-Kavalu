@@ -6,9 +6,10 @@ import { motion } from 'motion/react';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  onSignInClick: () => void;
 }
 
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header({ onMenuClick, onSignInClick }: HeaderProps) {
   const [user] = useAuthState(auth);
 
   return (
@@ -54,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
         ) : (
           <button
-            onClick={signInWithGoogle}
+            onClick={onSignInClick}
             className="flex items-center gap-2 px-4 py-2 bg-stone-900 text-white rounded-xl font-bold text-sm hover:bg-stone-800 transition-all shadow-md"
           >
             <LogIn className="w-4 h-4" />

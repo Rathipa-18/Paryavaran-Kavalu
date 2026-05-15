@@ -22,6 +22,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
 import ReportModal from './components/ReportModal';
+import AuthModal from './components/AuthModal';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import RestorationTasks from './components/RestorationTasks';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,6 +34,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeView, setActiveView] = useState<'map' | 'dashboard' | 'tasks'>('map');
   const [selectedReport, setSelectedReport] = useState<WasteReport | null>(null);
@@ -187,7 +189,7 @@ export default function App() {
   const handleNewReport = async (data: { wasteType: WasteType; description: string; imageUrl: string; lat: number; lng: number }) => {
     if (!user) {
       setPendingReportData(data);
-      signInWithGoogle();
+      setIsAuthModalOpen(true);
       return;
     }
 
@@ -334,7 +336,10 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden text-stone-900">
-      <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <Header 
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+        onSignInClick={() => setIsAuthModalOpen(true)}
+      />
       
       <main className="flex-1 flex overflow-hidden relative">
         <Sidebar 
@@ -441,6 +446,11 @@ export default function App() {
         onClose={() => setIsReportModalOpen(false)}
         onSubmit={handleNewReport}
         currentCoords={userCoords}
+      />
+
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
       {/* Floating Action Button (Mobile only) */}
