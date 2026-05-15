@@ -19,9 +19,10 @@ interface RestorationTasksProps {
   reports: WasteReport[];
   userProfile: UserProfile | null;
   onMarkAsCleaned: (report: WasteReport) => void;
+  onDeleteReport: (id: string) => void;
 }
 
-export default function RestorationTasks({ reports, userProfile, onMarkAsCleaned }: RestorationTasksProps) {
+export default function RestorationTasks({ reports, userProfile, onMarkAsCleaned, onDeleteReport }: RestorationTasksProps) {
   const pendingReports = useMemo(() => 
     reports.filter(r => r.status === 'Pending')
       .sort((a, b) => (b.reportedAt?.seconds || 0) - (a.reportedAt?.seconds || 0)),
@@ -153,7 +154,7 @@ export default function RestorationTasks({ reports, userProfile, onMarkAsCleaned
                       </span>
                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-widest">
                          <Calendar className="w-3.5 h-3.5" />
-                         {report.reportedAt ? format(new Date(report.reportedAt.seconds * 1000), 'MMM dd, HH:mm') : 'Just now'}
+                         {report.reportedAt?.seconds ? format(new Date(report.reportedAt.seconds * 1000), 'MMM dd, HH:mm') : 'Just now'}
                       </div>
                     </div>
                     
@@ -173,18 +174,27 @@ export default function RestorationTasks({ reports, userProfile, onMarkAsCleaned
                     </div>
 
                     <div className="mt-4 flex items-center gap-2">
-                       <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors">
+                       <button 
+                         onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${report.lat},${report.lng}`, '_blank')}
+                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors"
+                       >
                          <Navigation className="w-3.5 h-3.5" />
                          Navigate to site
                        </button>
                     </div>
                   </div>
 
-                  <div className="hidden md:block">
-                     <button className="p-3 text-stone-300 hover:text-red-500 transition-colors">
-                       <Trash2 className="w-5 h-5" />
-                     </button>
-                  </div>
+                  {userProfile?.uid === report.reportedBy && (
+                    <div className="hidden md:block">
+                      <button 
+                        onClick={() => onDeleteReport(report.id)}
+                        className="p-3 text-stone-300 hover:text-red-500 transition-colors"
+                        title="Delete Report"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>

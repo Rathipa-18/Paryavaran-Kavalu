@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Camera, MapPin, Loader2, Check, Wand2, AlertCircle } from 'lucide-react';
 import { WasteType } from '../types';
 import { cn } from '../lib/utils';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -41,30 +41,42 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
         throw new Error("Gemini API Key is missing. Please add it to your environment variables.");
       }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
+      const ai = new GoogleGenAI({ apiKey });
       const base64Data = imagePreview.split(',')[1];
       
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            { text: "Analyze this image for environmental waste. Identify the dominant waste type from: Plastic, Organic, Electronic, Metal, Other. Then describe the situation in one concise sentence. Format: CATEGORY\nDESCRIPTION" },
+            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+          ]
+        }
+      });
+
+      const text = response.text || "";
+      const cleanedText = text.replace(/```json|```/g, '').trim();
+      const lines = cleanedText.split('\n').filter(l => l.trim().length > 0);
       
-      const result = await model.generateContent([
-        "Analyze this image for environmental waste. Identify the dominant waste type from: Plastic, Organic, Electronic, Metal, Other. Then describe the situation in one concise sentence. Format: CATEGORY\nDESCRIPTION",
-        { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-      ]);
+      // More robust parsing
+      let categoryCandidate = lines[0]?.trim() || "";
+      let desc = lines.slice(1).join(' ').trim() || cleanedText;
 
-      const response = await result.response;
-      const text = response.text();
-      const lines = text.split('\n').filter(l => l.trim().length > 0);
-      const categoryCandidate = lines[0]?.trim();
-      const desc = lines.slice(1).join(' ').trim() || text;
-
-      if (categoryCandidate) {
+      // If categoryCandidate is too long, it might be the whole text
+      if (categoryCandidate.length > 20) {
+        const found = WASTE_TYPES.find(t => cleanedText.toLowerCase().includes(t.toLowerCase()));
+        if (found) {
+          setWasteType(found);
+          setDescription(cleanedText);
+        }
+      } else {
         const matched = WASTE_TYPES.find(t => 
           categoryCandidate.toLowerCase().includes(t.toLowerCase()) ||
           t.toLowerCase().includes(categoryCandidate.toLowerCase())
         );
         if (matched) setWasteType(matched);
+        if (desc) setDescription(desc);
       }
-      if (desc) setDescription(desc);
     } catch (error) {
       console.error("AI Analysis failed:", error);
       alert(error instanceof Error ? error.message : "AI Analysis failed. Please categorization manually.");
@@ -76,6 +88,11 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 500 * 1024) {
+        alert("Image is too large. Please select an image smaller than 500KB to ensure it can be saved to the database.");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -151,7 +168,7 @@ export default function ReportModal({ isOpen, onClose, onSubmit, currentCoords }
                 <>
                   <Camera className="w-10 h-10 text-stone-400 mb-2" />
                   <p className="text-sm text-stone-500">Tap to capture or upload photo</p>
-                  <p className="text-[10px] text-stone-400 mt-1 uppercase">Max size: 500KB recommended</p>
+                  <p className="text-[10px] text-stone-400 mt-1 uppercase">Max size: 500KB</p>
                 </>
               )}
             </div>

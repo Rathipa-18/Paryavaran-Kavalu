@@ -7,6 +7,7 @@ import {
   onSnapshot, 
   addDoc, 
   updateDoc, 
+  deleteDoc,
   doc, 
   setDoc, 
   increment, 
@@ -17,7 +18,6 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { WasteReport, UserProfile, WasteType } from './types';
 import { handleFirestoreError, OperationType } from './lib/firestoreUtils';
 import { useFusedLocation } from './hooks/useFusedLocation';
-import { MapPin } from 'lucide-react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MapView from './components/MapView';
@@ -115,7 +115,10 @@ export default function App() {
         const reportsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as WasteReport[];
         setReports(reportsData);
       },
-      (err) => setError(handleFirestoreError(err, OperationType.LIST, 'reports').message)
+      (err) => {
+        const firestoreErr = handleFirestoreError(err, OperationType.LIST, 'reports');
+        setError((firestoreErr as any).readableMessage || firestoreErr.message);
+      }
     );
     return () => unsubscribe();
   }, []);
@@ -128,7 +131,10 @@ export default function App() {
         const users = snapshot.docs.map(d => d.data() as UserProfile);
         setLeaderboard(users);
       },
-      (err) => setError(handleFirestoreError(err, OperationType.LIST, 'users').message)
+      (err) => {
+        const firestoreErr = handleFirestoreError(err, OperationType.LIST, 'users');
+        setError((firestoreErr as any).readableMessage || firestoreErr.message);
+      }
     );
     return () => unsubscribe();
   }, []);
@@ -151,7 +157,10 @@ export default function App() {
           setShowOnboarding(true);
         }
       },
-      (err) => setError(handleFirestoreError(err, OperationType.GET, `users/${user.uid}`).message)
+      (err) => {
+        const firestoreErr = handleFirestoreError(err, OperationType.GET, `users/${user.uid}`);
+        setError((firestoreErr as any).readableMessage || firestoreErr.message);
+      }
     );
     return () => unsubscribe();
   }, [user]);
@@ -170,7 +179,8 @@ export default function App() {
       await setDoc(userRef, initialProfile);
       setShowOnboarding(false);
     } catch (err) {
-      setError(handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`).message);
+      const firestoreErr = handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+      setError((firestoreErr as any).readableMessage || firestoreErr.message);
     }
   };
 
@@ -201,7 +211,25 @@ export default function App() {
       setShowSuccessToast(true);
       setTimeout(() => setShowSuccessToast(false), 4000);
     } catch (err) {
-      setError(handleFirestoreError(err, OperationType.CREATE, 'reports').message);
+      const firestoreErr = handleFirestoreError(err, OperationType.CREATE, 'reports');
+      setError((firestoreErr as any).readableMessage || firestoreErr.message);
+    }
+  };
+
+  const handleDeleteReport = async (reportId: string) => {
+    if (!user) return;
+    if (!window.confirm("Are you sure you want to delete this report? This cannot be undone.")) return;
+
+    try {
+      const reportRef = doc(db, 'reports', reportId);
+      // Rules allow delete if Pending and Owner
+      await deleteDoc(reportRef);
+      if (selectedReport?.id === reportId) {
+        setSelectedReport(null);
+      }
+    } catch (err) {
+      const firestoreErr = handleFirestoreError(err, OperationType.DELETE, `reports/${reportId}`);
+      setError((firestoreErr as any).readableMessage || firestoreErr.message);
     }
   };
 
@@ -234,7 +262,8 @@ export default function App() {
       
       setSelectedReport({ ...report, status: 'Cleaned', ...updateData });
     } catch (err) {
-      setError(handleFirestoreError(err, OperationType.UPDATE, `reports/${report.id}`).message);
+      const firestoreErr = handleFirestoreError(err, OperationType.UPDATE, `reports/${report.id}`);
+      setError((firestoreErr as any).readableMessage || firestoreErr.message);
     }
   };
 
@@ -243,7 +272,8 @@ export default function App() {
       const reportRef = doc(db, 'reports', reportId);
       await updateDoc(reportRef, data);
     } catch (err) {
-      setError(handleFirestoreError(err, OperationType.UPDATE, `reports/${reportId}`).message);
+      const firestoreErr = handleFirestoreError(err, OperationType.UPDATE, `reports/${reportId}`);
+      setError((firestoreErr as any).readableMessage || firestoreErr.message);
     }
   };
 
@@ -340,6 +370,7 @@ export default function App() {
               reports={reports}
               userProfile={userProfile}
               onMarkAsCleaned={handleMarkAsCleaned}
+              onDeleteReport={handleDeleteReport}
             />
           ) : (
             <AnalyticsDashboard 

@@ -44,11 +44,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   
-  const errorMessage = `Firestore ${operationType} at ${path || 'unknown'} failed: ${errInfo.error}`;
+  const errorMessage = `Firestore ${operationType} failed: ${errInfo.error}`;
   console.error(errorMessage, errInfo);
   
   // Custom error that includes the structured data
   const finalError = new Error(JSON.stringify(errInfo));
+  
+  let readableMessage = `Unable to ${operationType.toLowerCase()} data. Please check your permissions or network.`;
+  
+  if (errInfo.error.includes('unavailable') || errInfo.error.includes('offline')) {
+    readableMessage = "Unable to connect to the database. Trying to reconnect... If this persists, please refresh the page.";
+  }
+  
+  (finalError as any).readableMessage = readableMessage;
   (finalError as any).originalError = error;
   (finalError as any).isFirestoreError = true;
   

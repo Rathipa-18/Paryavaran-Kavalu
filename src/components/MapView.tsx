@@ -226,7 +226,7 @@ function MapInner({ userProfile, reports, selectedReport, onReportClick, onMarkA
             <div className="p-5">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-xl font-serif font-bold text-stone-900">{selectedReport.wasteType} Waste</h3>
-                <span className="text-xs text-stone-400 font-medium">{selectedReport.reportedAt ? new Date(selectedReport.reportedAt.seconds * 1000).toLocaleDateString() : 'Just now'}</span>
+                <span className="text-xs text-stone-400 font-medium">{selectedReport.reportedAt?.seconds ? new Date(selectedReport.reportedAt.seconds * 1000).toLocaleDateString() : 'Just now'}</span>
               </div>
               <p className="text-stone-600 text-sm leading-relaxed mb-6">
                 {selectedReport.description || "No description provided for this blackspot."}

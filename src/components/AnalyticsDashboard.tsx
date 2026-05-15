@@ -131,7 +131,7 @@ export default function AnalyticsDashboard({ reports, userProfile, onUpdateRepor
                     <div className="flex items-center gap-3 text-[10px] font-bold text-stone-300 uppercase tracking-widest">
                        <span>{report.reportedByName}</span>
                        <span className="w-1 h-1 bg-stone-200 rounded-full" />
-                       <span>{report.reportedAt ? format(new Date(report.reportedAt.seconds * 1000), 'MMM dd') : 'Just now'}</span>
+                       <span>{report.reportedAt?.seconds ? format(new Date(report.reportedAt.seconds * 1000), 'MMM dd') : 'Just now'}</span>
                     </div>
                   </div>
                 </div>
