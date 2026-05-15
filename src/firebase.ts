@@ -23,9 +23,13 @@ export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 
+export const emailLogin = (email: string, password: string) => 
+  signInWithEmailAndPassword(auth, email, password);
+
+export const emailRegister = (email: string, password: string) => 
+  createUserWithEmailAndPassword(auth, email, password);
+
 export { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail
 };

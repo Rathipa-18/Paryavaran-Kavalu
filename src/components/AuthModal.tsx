@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   signInWithGoogle, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
+  emailLogin, 
+  emailRegister,
   updateProfile
 } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
@@ -39,9 +39,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(email, password);
+        await emailLogin(email, password);
       } else {
-        const userCredential = await createUserWithEmailAndPassword(email, password);
+        const userCredential = await emailRegister(email, password);
         if (displayName) {
           await updateProfile(userCredential.user, { displayName });
         }
